@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Colt Search</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: sans-serif;
+        }
+        #excel-table {
+            margin-top: 10px;
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        #excel-table th, #excel-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        #excel-table th {
+            background-color: black;
+            color: white;
+        }
+
+        #excel-table tr.even-row {
+            background-color: #f5f5f5;
+        }
+    
+        #excel-table td:nth-child(2), /* 3rd column */
+        #excel-table td:nth-child(3), /* 4th column */
+        #excel-table td:nth-child(4) { /* 5th column */
+            text-align: right;
+        }
+        @media (max-width: 767px) {
+            #search-input {
+               width: 100px;
+            }
+            #file-input{
+                width: 70%;
+            }
+            
+            #table-container {
+                overflow-x: auto;
+            }
+
+            #excel-table {
+                font-size: 1em;
+                border-color: black;
+              
+            }
+            #excel-table th, #excel-table td {
+                padding: 10px;
+                white-space: nowrap; /* Add white-space: nowrap; only on mobile */
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1 style="text-align: center;">Colt Search</h1>
+    <div style="display: flex; flex-direction: column; align-items: center; ">
+        <input type="file" style="text-align: center;" id="file-input" accept=".xls, .xlsx">
+        <input type="text" id="search-input" style="padding-top: 5px; padding-bottom: 5px; padding-left: 5px; width: 300px; margin-top: 10px;" placeholder="Search (comma-separated)...">
+    </div>
+    <div id="table-container">
+        <table id="excel-table"></table>
+    </div>
+
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js" defer></script>
+    <script>
+        // Soundex implementation (simplified)
+        function soundex(str) {
+            if (!str) return "";
+
+            str = str.toUpperCase();
+            let sdx = str.charAt(0);
+            let codes = "AEIOUHWYBPFCGJKLMNQRSVXZDT";
+            let codeMap = "00000001234556789123456789";
+
+            for (let i = 1; i < str.length; i++) {
+                let codeIndex = codes.indexOf(str.charAt(i));
+                if (codeIndex !== -1) {
+                    let code = codeMap.charAt(codeIndex);
+                    if (code !== sdx.slice(-1)) {
+                        sdx += code;
+                    }
+                }
+            }
+            return sdx.padEnd(4, '0').slice(0, 4);
+        }
+
+        const fileInput = document.getElementById('file-input');
+        const searchInput = document.getElementById('search-input');
+        const table = document.getElementById('excel-table');
+        const tableContainer = document.getElementById('table-container');
+        let originalData;
+
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) {
+                tableContainer.innerHTML = "<p>Please select an Excel file.</p>";
+                return;
+            }
+            const reader = new FileReader();
+
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    originalData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+                    if (!originalData || originalData.length === 0) {
+                        tableContainer.innerHTML = "<p>No data found in the Excel file.</p>";
+                        return;
+                    }
+                    displayTable(originalData);
+                } catch (error) {
+                    tableContainer.innerHTML = "<p>Error reading the Excel file. It may be corrupted or in an unsupported format.</p>";
+                    console.error("Error reading Excel:", error);
+                }
+            };
+            reader.onerror = (error) => {
+                tableContainer.innerHTML = "<p>Error reading the file.</p>";
+                console.error("File Reader Error:", error)
+            }
+            reader.readAsArrayBuffer(file);
+        });
+
+        function displayTable(data) {
+            table.innerHTML = "";
+            if (!data || data.length === 0 || !data[0] || data[0].length === 0) {
+                tableContainer.innerHTML = "<p>No data to display.</p>";
+                return;
+            }
+
+            const headerRow = table.insertRow();
+            headerRow.classList.add("header-row");
+
+            for (let i = 0; i < data[0].length; i++) {
+                const headerCell = document.createElement("th");
+                headerCell.textContent = data[0][i] || `Column ${i + 1}`;
+                headerRow.appendChild(headerCell);
+            }
+
+            for (let i = 1; i < data.length; i++) {
+                const rowData = data[i];
+                if (!rowData) continue;
+                const row = table.insertRow();
+                for (let j = 0; j < rowData.length; j++) {
+                    const cellData = rowData[j];
+                    const cell = row.insertCell();
+
+                    if (j === 1 || j === 2 || j === 3) {
+                        if (typeof cellData === 'number') {
+                            cell.textContent = cellData.toFixed(2);
+                        } else {
+                            cell.textContent = cellData;
+                        }
+                    } else {
+                        cell.textContent = cellData;
+                    }
+                }
+                if (i % 2 === 0) {
+                    row.classList.add("even-row");
+                }
+            }
+        }
+
+        searchInput.addEventListener('input', () => {
+            const searchString = searchInput.value.toLowerCase();
+            let searchTerms = searchString.split(',').map(term => term.trim());
+            let filteredData = [];
+
+            if (searchString === "") {
+                displayTable(originalData);
+                return;
+            }
+
+            filteredData.push(originalData[0]);
+
+            for (let i = 1; i < originalData.length; i++) {
+                const rowData = originalData[i];
+                let rowMatch = true;
+
+                if (!rowData) continue;
+
+                for (const searchTerm of searchTerms) {
+                    if (searchTerm === "") continue;
+
+                    let termMatch = false;
+                    let searchSoundex;
+                    try {
+                        searchSoundex = soundex(searchTerm);
+                    } catch (error) {
+                        searchSoundex = "";
+                    }
+
+                    for (const cellData of rowData) {
+                        if (cellData) {
+                            const cellText = cellData.toString().toLowerCase();
+                            let cellSoundex;
+                            try {
+                                cellSoundex = soundex(cellText);
+                            } catch (error) {
+                                cellSoundex = "";
+                            }
+
+                            if (cellText.includes(searchTerm) || searchSoundex === cellSoundex) {
+                                termMatch = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!termMatch) {
+                        rowMatch = false;
+                        break;
+                    }
+                }
+                if (rowMatch) {
+                    filteredData.push(rowData);
+                }
+            }
+            displayTable(filteredData);
+        });
+    </script>
+
+</body>
+</html>
