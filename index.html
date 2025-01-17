@@ -12,11 +12,15 @@
      width: 100%;  
      background-color: #ffffff;
      display: flex;
-     flex-direction: column;
+     justify-content: space-around;
+     
+     
+     flex-direction:row-reverse;
      align-items: center;
-     padding-bottom: 10px;
+
      z-index: 10;
     }
+    
        body {
            font-family: sans-serif;
        }
@@ -32,8 +36,18 @@
            text-align: left;
        }
        #table-container {
-               margin-top: 180px;
+               margin-top: 100px;
               
+           }
+           #file-input{
+            
+            font-size: 20px;
+            width: 300px;
+    
+        }
+           #search-input{
+            width: 400px;
+            margin-left: 50px;
            }
     
        #excel-table th {
@@ -52,16 +66,19 @@
        }
        @media (max-width: 767px) {
            #search-input {
-              width: 250px;
+              width: 245px;
            }
            #file-input{
-            
+                width: 220px;
                font-size: 16px;
        
            }
+           #search-container {
+            justify-content: right;
+           }
            
            #table-container {
-               margin-top: 170px;
+               margin-top: 90px;
                overflow-x: auto;
            }
     
@@ -80,8 +97,8 @@
 <body>
     <div id="search-container">
         <img src="CapitalAutos.png" style="width: 100px;" />
-        <div style="display: flex; flex-direction: column; align-items: center;">
-            <input type="file" style="text-align: center; width: 200px;" id="file-input" accept=".xls, .xlsx">
+        <div style="display: flex; flex-direction: column; align-items: end; margin-left: 20px; ">
+            <input type="file" style="text-align: center; " id="file-input" accept=".xls, .xlsx">
             <input type="text" style="margin-top: 20px; padding: 5px 6%;" id="search-input" placeholder="Search (comma-separated)...">
         </div>
     </div>
